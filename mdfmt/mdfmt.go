@@ -43,7 +43,7 @@ func (r *Renderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(ast.KindString, r.renderString)
 }
 
-var wordBoundaryRegexp = regexp.MustCompile("\b")
+var wordBoundaryRegexp = regexp.MustCompile(`\b`)
 
 func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	fmt.Println("Paragraph")
@@ -61,26 +61,25 @@ func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, enter
 	return ast.WalkSkipChildren, nil
 }
 
+// TODO: Write a test
+// TODO: change from byte lenght to character length! https://pkg.go.dev/unicode/utf8#RuneCount
+// maxWidth takes in a paragraph of text with line breaks and converts it to a
+// paragraph where every line contains at least one word and is at most w characters wide,
+// granted the first word is not greater than w characters.
 func maxWidth(s []byte, w int) [][]byte {
-	n := bytes.ReplaceAll(s, []byte("\n"), []byte(" "))
+	sr := bytes.ReplaceAll(s, []byte("\n"), []byte(" "))
+	inds := wordBoundaryRegexp.FindAllIndex(sr, -1)
 	var res [][]byte
-	for i := 0; i < len(s); {
-		li := i
-		ri := i + w
-		if ri > len(s) {
-			ri = len(s)
-			res = append(res, n[li:ri])
-			break
+	lineStart := 0
+	for lineStart < len(inds)-1 { // loop over lines
+		lineEnd := lineStart + 1
+		for lineEnd < len(inds)-1 &&
+			inds[lineEnd+1][0]-inds[lineStart][0] < w { // loop over words, continually trying to add the next one!
+			lineEnd++
 		}
-		j := ri
-		for ; j > li && n[j-1] != byte(' '); j-- {
-		}
-		if j > li {
-			ri = j
-		}
-		line := n[li:ri]
+		line := bytes.Trim(sr[inds[lineStart][0]:inds[lineEnd][0]], " ")
 		res = append(res, line)
-		i += len(line)
+		lineStart = lineEnd
 	}
 	return res
 }
