@@ -54,8 +54,12 @@ func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, enter
 			value := segment.Value(s)
 			lines = append(lines, value...)
 		}
-		for _, l := range maxWidth(lines, 80) {
-			fmt.Println(string(l))
+		split := maxWidth(lines, 80)
+		for i := 0; i < len(split); i++ {
+			w.Write(split[i])
+			if i != len(split)-1 {
+				w.Write([]byte("\n"))
+			}
 		}
 	}
 	return ast.WalkSkipChildren, nil
