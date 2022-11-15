@@ -50,8 +50,11 @@ func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, enter
 	if entering {
 		lines := []byte{}
 		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
-			segment := c.(*ast.Text).Segment
-			value := segment.Value(s)
+			txt, ok := c.(*ast.Text)
+			if !ok {
+				continue
+			}
+			value := txt.Segment.Value(s)
 			lines = append(lines, value...)
 		}
 		split := maxWidth(lines, 80)
