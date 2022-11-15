@@ -67,7 +67,7 @@ func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, enter
 }
 
 // TODO: Write a test
-// TODO: change from byte lenght to character length! https://pkg.go.dev/unicode/utf8#RuneCount
+// TODO: change from byte length to character length! https://pkg.go.dev/unicode/utf8#RuneCount
 // maxWidth takes in a paragraph of text with line breaks and converts it to a
 // paragraph where every line contains at least one word and is at most w characters wide,
 // granted the first word is not greater than w characters.
@@ -97,6 +97,13 @@ func (r *Renderer) renderTextBlock(w util.BufWriter, s []byte, n ast.Node, enter
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderHeading(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		h := n.(*ast.Heading)
+		w.Write(bytes.Repeat([]byte{'#'}, h.Level))
+		w.WriteByte(' ')
+	} else {
+		w.WriteByte('\n')
+	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderBlockquote(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -139,6 +146,9 @@ func (r *Renderer) renderRawHTML(w util.BufWriter, s []byte, n ast.Node, enterin
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderText(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		w.Write(n.Text(s))
+	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderString(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
