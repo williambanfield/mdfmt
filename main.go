@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
 	"io"
 	"os"
 
@@ -15,21 +13,25 @@ import (
 )
 
 func main() {
-	f, err := os.Open("./README.md")
+	var input io.Reader
+	if len(os.Args) == 1 {
+		input = os.Stdin
+	} else {
+		var err error
+		input, err = os.Open(os.Args[1])
+		if err != nil {
+			panic(err)
+		}
+	}
+	src, err := io.ReadAll(input)
 	if err != nil {
 		panic(err)
 	}
-	src, err := io.ReadAll(f)
-	if err != nil {
-		panic(err)
-	}
-	buf := bytes.Buffer{}
 	r := text.NewReader(src)
 	p := newParser()
 	n := p.Parse(r)
 	re := newRenderer()
 	re.Render(os.Stdout, src, n)
-	fmt.Println(string(buf.Bytes()))
 }
 
 func newParser() parser.Parser {
