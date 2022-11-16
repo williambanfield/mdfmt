@@ -118,8 +118,8 @@ func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, enter
 // paragraph where every line contains at least one word and is at most w characters wide,
 // granted the first word is not greater than w characters.
 func maxWidth(s []byte, w int) [][]byte {
-	inds := spaceRegexp.FindAllIndex(s, -1)
 	sr := bytes.ReplaceAll(s, []byte{'\n'}, []byte{' '})
+	inds := spaceRegexp.FindAllIndex(sr, -1)
 
 	// Append an additional position at the end of the list so that the last word
 	// in the text will be included. There is not necessarily a space at the end of
@@ -136,11 +136,17 @@ func maxWidth(s []byte, w int) [][]byte {
 	lineStart := 0
 	for lineStart < len(inds)-1 { // loop over lines
 		lineEnd := lineStart + 1
+
+		// loop over words, continually trying to add the next one.
+		//
+		// A single additional offset is added to the lineStart index in the calculation to account
+		// for the leading whitespace. This whitespace is going to be deleted, but
+		// was the index given by the regular expression, so it should be ignored
+		// for character count calculations.
 		for lineEnd < len(inds)-1 &&
-			inds[lineEnd+1][0]-inds[lineStart][0] < w { // loop over words, continually trying to add the next one!
+			inds[lineEnd+1][0]-(inds[lineStart][0]+1) <= w {
 			lineEnd++
 		}
-
 		//TODO(williambanfield): preserve hard line breaks.
 		line := bytes.Trim(sr[inds[lineStart][0]:inds[lineEnd][0]], " ")
 		res = append(res, line)
