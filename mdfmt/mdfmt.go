@@ -310,6 +310,10 @@ func (r *Renderer) renderString(w util.BufWriter, s []byte, n ast.Node, entering
 
 func (r *Renderer) renderTable(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	// Calculate the max-width column for every column in the table.
+	if !entering {
+		w.WriteByte('\n')
+		return ast.WalkContinue, nil
+	}
 	gcl := make([]int, n.FirstChild().ChildCount())
 	for r := n.FirstChild(); r != nil; r = r.NextSibling() {
 		cx := 0
