@@ -228,6 +228,7 @@ func (r *Renderer) renderListItem(w util.BufWriter, s []byte, n ast.Node, enteri
 			fmt.Fprintf(w, "%d%s ", l.Start, string(l.Marker))
 		} else {
 			w.WriteByte(l.Marker)
+			w.WriteByte(' ')
 		}
 	} else {
 		w.WriteByte('\n')
