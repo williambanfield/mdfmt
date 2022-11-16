@@ -25,10 +25,6 @@ var Decorators = map[ast.NodeKind]Decorator{
 	},
 }
 
-type Renderer struct {
-	codeFormatters map[string]CodeFormatter
-}
-
 type Decorator struct {
 	Pre, Post []byte
 }
@@ -39,22 +35,61 @@ type CodeFormatter interface {
 	// Format receives the code as a list of bytes and is expected to return
 	// a formatted equivalent of the same code.
 	Format([]byte) ([]byte, error)
-
-	// Languages returns the list of languages this formatter should be used to
-	// format. If the list is empty, it will not be used to format any languages.
-	Languages() []string
 }
 
-func NewRenderer(cfs []CodeFormatter) renderer.NodeRenderer {
-	cm := make(map[string]CodeFormatter)
-	for _, c := range cfs {
-		for _, l := range c.Languages() {
-			cm[l] = c
-		}
+// Option interface for defining functional options for the renderer.
+type Option interface {
+	SetRendererOption(*Renderer)
+}
+
+type Renderer struct {
+	codeFormatters map[string]CodeFormatter
+	maxWidth       int
+}
+
+// NewRenderer returns a goldmark node renderer that pretty-prints the
+// input markdown, applying basic style fixes to produce a consist format
+// throughout the file.
+func NewRenderer(opts ...Option) renderer.NodeRenderer {
+	r := &Renderer{
+		codeFormatters: make(map[string]CodeFormatter),
+		maxWidth:       80,
 	}
-	return &Renderer{
-		codeFormatters: cm,
+	for _, opt := range opts {
+		opt.SetRendererOption(r)
 	}
+	return r
+}
+
+type withCodeFencerFormatter struct {
+	l     string
+	fmter CodeFormatter
+}
+
+func (w withCodeFencerFormatter) SetRendererOption(r *Renderer) {
+	r.codeFormatters[w.l] = w.fmter
+}
+
+// WithCodeFenceFormatter is a functional option for specifying a code fence
+// formatter. The supplied fmter will be used in code fences that are detected
+// to be written in the supplied language.
+func WithCodeFenceFormatter(language string, fmter CodeFormatter) Option {
+	return withCodeFencerFormatter{
+		l:     language,
+		fmter: fmter,
+	}
+}
+
+type withMaxCharacterWidth int
+
+func (w withMaxCharacterWidth) SetRendererOption(r *Renderer) {
+	r.maxWidth = int(w)
+}
+
+// WithMaxCharacterWidth is a functional option for specifying the max character width
+// to limit each line within a paragraph to.
+func WithMaxCharacterWidth(w int) Option {
+	return withMaxCharacterWidth(w)
 }
 
 // RendererFuncs registers NodeRendererFuncs to given NodeRendererFuncRegisterer.
@@ -101,12 +136,12 @@ func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, enter
 			l := n.Lines().At(i)
 			lines = append(lines, l.Value(s)...)
 		}
-		split := maxWidth(lines, 80)
+		split := maxWidth(lines, r.maxWidth)
 		for i := 0; i < len(split); i++ {
 			w.Write(split[i])
 			w.WriteByte('\n')
 		}
-		w.WriteByte('\n')
+		//TODO(williambanfield): consider adding extra newline back to end of paragraph.
 	}
 	return ast.WalkSkipChildren, nil
 }
@@ -137,14 +172,20 @@ func maxWidth(s []byte, w int) [][]byte {
 	for lineStart < len(inds)-1 { // loop over lines
 		lineEnd := lineStart + 1
 
-		// loop over words, continually trying to add the next one.
-		//
 		// A single additional offset is added to the lineStart index in the calculation to account
 		// for the leading whitespace. This whitespace is going to be deleted, but
 		// was the index given by the regular expression, so it should be ignored
 		// for character count calculations.
+		spOff := 1
+		if sr[inds[lineStart][0]] != ' ' {
+			spOff = 0
+		}
+
+		// loop over words, continually trying to add the next one. If adding the
+		// word overflows maxWidth, put the line break after the current word and
+		// start the next line.
 		for lineEnd < len(inds)-1 &&
-			inds[lineEnd+1][0]-(inds[lineStart][0]+1) <= w {
+			inds[lineEnd+1][0]-(inds[lineStart][0]+spOff) < w {
 			lineEnd++
 		}
 		//TODO(williambanfield): preserve hard line breaks.

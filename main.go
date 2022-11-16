@@ -44,20 +44,19 @@ func newParser() parser.Parser {
 }
 
 func newRenderer() renderer.Renderer {
-	var fmts []mdfmt.CodeFormatter
+	var opts []mdfmt.Option
 	gp, err := exec.LookPath("gofmt")
 	if err == nil {
-		gf := gofmter{
+		gofmt := gofmter{
 			path: gp,
 		}
-		fmts = append(fmts, gf)
+		opts = append(opts, mdfmt.WithCodeFenceFormatter("go", gofmt))
 	}
+	mdf := mdfmt.NewRenderer(opts...)
 
 	return renderer.NewRenderer(
 		renderer.WithNodeRenderers(
-			util.Prioritized(mdfmt.NewRenderer(fmts), 1000),
-			//util.Prioritized(html.NewRenderer(), 1000),
-			//			util.Prioritized(extension.NewTableHTMLRenderer(), 2000),
+			util.Prioritized(mdf, 1000),
 		),
 	)
 }
@@ -76,11 +75,4 @@ func (g gofmter) Format(b []byte) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
-}
-
-func (gofmter) Languages() []string {
-	return []string{
-		"go",
-		"golang",
-	}
 }
