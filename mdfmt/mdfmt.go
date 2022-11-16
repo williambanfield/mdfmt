@@ -308,9 +308,6 @@ func (r *Renderer) renderTable(w util.BufWriter, s []byte, n ast.Node, entering 
 				li := lines.At(i)
 				l += li.Len()
 			}
-			if d, ok := Decorators[c.Kind()]; ok {
-				l += len(d.Pre) + len(d.Post)
-			}
 			if l > gcl[cx] {
 				gcl[cx] = l
 			}
