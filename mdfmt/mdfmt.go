@@ -10,10 +10,31 @@ import (
 )
 
 type Renderer struct {
+	codeFormatters map[string]CodeFormatter
 }
 
-func NewRenderer() renderer.NodeRenderer {
-	return &Renderer{}
+// CodeFormatter defines an interfaces for providing custom formatting for
+// fenced code blocks.
+type CodeFormatter interface {
+	// Format receives the code as a list of bytes and is expected to return
+	// a formatted equivalent of the same code.
+	Format([]byte) ([]byte, error)
+
+	// Languages returns the list of languages this formatter should be used to
+	// format. If the list is empty, it will not be used to format any languages.
+	Languages() []string
+}
+
+func NewRenderer(cfs []CodeFormatter) renderer.NodeRenderer {
+	cm := make(map[string]CodeFormatter)
+	for _, c := range cfs {
+		for _, l := range c.Languages() {
+			cm[l] = c
+		}
+	}
+	return &Renderer{
+		codeFormatters: cm,
+	}
 }
 
 // RendererFuncs registers NodeRendererFuncs to given NodeRendererFuncRegisterer.
@@ -131,10 +152,19 @@ func (r *Renderer) renderFencedCodeBlock(w util.BufWriter, s []byte, n ast.Node,
 		if ln != nil {
 			_, _ = w.Write(ln)
 		}
+		w.WriteByte('\n')
 		l := n.Lines().Len()
+		var lines []byte
 		for i := 0; i < l; i++ {
 			line := n.Lines().At(i)
-			w.Write(line.Value(s))
+			lines = append(lines, line.Value(s)...)
+		}
+		if fmter, ok := r.codeFormatters[string(ln)]; ok {
+			res, err := fmter.Format(lines)
+			if err != nil {
+				return ast.WalkStop, err
+			}
+			w.Write(res)
 		}
 	} else {
 		_, _ = w.WriteString("```\n")
