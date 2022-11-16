@@ -159,9 +159,12 @@ func (r *Renderer) renderTextBlock(w util.BufWriter, s []byte, n ast.Node, enter
 func (r *Renderer) renderHeading(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
 		h := n.(*ast.Heading)
+		//TODO(williambanfield): preserve header style. Headers can be prefixed with # or underlined.
+		// See: https://www.markdownguide.org/basic-syntax/#alternate-syntax
 		w.Write(bytes.Repeat([]byte{'#'}, h.Level))
 		w.WriteByte(' ')
 	} else {
+		w.WriteByte('\n')
 		w.WriteByte('\n')
 	}
 	return ast.WalkContinue, nil
