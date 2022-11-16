@@ -208,9 +208,41 @@ func (r *Renderer) renderAutoLink(w util.BufWriter, s []byte, n ast.Node, enteri
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderCodeSpan(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		w.WriteByte('`')
+		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+			segment := c.(*ast.Text).Segment
+			value := segment.Value(s)
+			if bytes.HasSuffix(value, []byte("\n")) {
+				w.Write(value[:len(value)-1])
+				w.WriteByte(' ')
+			} else {
+				w.Write(value)
+			}
+		}
+		return ast.WalkSkipChildren, nil
+	} else {
+		w.WriteByte('`')
+	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderEmphasis(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		w.WriteString("**")
+		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+			segment := c.(*ast.Text).Segment
+			value := segment.Value(s)
+			if bytes.HasSuffix(value, []byte("\n")) {
+				w.Write(value[:len(value)-1])
+				w.WriteByte(' ')
+			} else {
+				w.Write(value)
+			}
+		}
+		return ast.WalkSkipChildren, nil
+	} else {
+		w.WriteString("**")
+	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderImage(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
