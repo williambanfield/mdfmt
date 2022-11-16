@@ -120,6 +120,21 @@ func (r *Renderer) renderCodeBlock(w util.BufWriter, s []byte, n ast.Node, enter
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderFencedCodeBlock(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	fcb := n.(*ast.FencedCodeBlock)
+	if entering {
+		_, _ = w.WriteString("```")
+		ln := fcb.Language(s)
+		if ln != nil {
+			_, _ = w.Write(ln)
+		}
+		l := n.Lines().Len()
+		for i := 0; i < l; i++ {
+			line := n.Lines().At(i)
+			w.Write(line.Value(s))
+		}
+	} else {
+		_, _ = w.WriteString("```\n")
+	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderHTMLBlock(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
