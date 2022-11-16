@@ -11,8 +11,26 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
+var Decorators = map[ast.NodeKind]Decorator{
+	ast.KindEmphasis: {
+		Pre:  []byte("**"),
+		Post: []byte("**"),
+	},
+	ast.KindCodeSpan: {
+		Pre:  []byte{'`'},
+		Post: []byte{'`'},
+	},
+	ast.KindBlockquote: {
+		Pre: []byte("> "),
+	},
+}
+
 type Renderer struct {
 	codeFormatters map[string]CodeFormatter
+}
+
+type Decorator struct {
+	Pre, Post []byte
 }
 
 // CodeFormatter defines an interfaces for providing custom formatting for
@@ -149,8 +167,9 @@ func (r *Renderer) renderHeading(w util.BufWriter, s []byte, n ast.Node, enterin
 }
 func (r *Renderer) renderBlockquote(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
-		w.WriteString("> ")
+		w.Write(Decorators[n.Kind()].Pre)
 	} else {
+		w.Write(Decorators[n.Kind()].Post)
 		w.WriteByte('\n')
 	}
 	return ast.WalkContinue, nil
@@ -217,7 +236,7 @@ func (r *Renderer) renderAutoLink(w util.BufWriter, s []byte, n ast.Node, enteri
 }
 func (r *Renderer) renderCodeSpan(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
-		w.WriteByte('`')
+		w.Write(Decorators[n.Kind()].Pre)
 		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
 			segment := c.(*ast.Text).Segment
 			value := segment.Value(s)
@@ -230,13 +249,13 @@ func (r *Renderer) renderCodeSpan(w util.BufWriter, s []byte, n ast.Node, enteri
 		}
 		return ast.WalkSkipChildren, nil
 	} else {
-		w.WriteByte('`')
+		w.Write(Decorators[n.Kind()].Post)
 	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderEmphasis(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
-		w.WriteString("**")
+		w.Write(Decorators[n.Kind()].Pre)
 		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
 			segment := c.(*ast.Text).Segment
 			value := segment.Value(s)
@@ -249,7 +268,7 @@ func (r *Renderer) renderEmphasis(w util.BufWriter, s []byte, n ast.Node, enteri
 		}
 		return ast.WalkSkipChildren, nil
 	} else {
-		w.WriteString("**")
+		w.Write(Decorators[n.Kind()].Post)
 	}
 	return ast.WalkContinue, nil
 }
@@ -278,61 +297,94 @@ func (r *Renderer) renderString(w util.BufWriter, s []byte, n ast.Node, entering
 }
 
 func (r *Renderer) renderTable(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
-	// find the longest row
-	// loop over rows
-
-	// array of integers to hold the max lenght of each column
+	// Calculate the max-width column for every column in the table.
 	gcl := make([]int, n.FirstChild().ChildCount())
 	for r := n.FirstChild(); r != nil; r = r.NextSibling() {
-		// loop over cells
 		cx := 0
 		for c := r.FirstChild(); c != nil; c = c.NextSibling() {
-			l := len(c.Text(s))
+			var l int
+			lines := c.Lines()
+			for i := 0; i < lines.Len(); i++ {
+				li := lines.At(i)
+				l += li.Len()
+			}
+			if d, ok := Decorators[c.Kind()]; ok {
+				l += len(d.Pre) + len(d.Post)
+			}
 			if l > gcl[cx] {
 				gcl[cx] = l
 			}
 			cx++
 		}
 	}
-
-	header := n.FirstChild()
-	writePaddedLine(w, s, header, gcl)
-	cx := 0
-	for c := header.FirstChild(); c != nil; c = c.NextSibling() {
-		w.WriteByte('|')
-		w.Write(bytes.Repeat([]byte{'-'}, gcl[cx]+2))
-		cx++
+	for r := n.FirstChild(); r != nil; r = r.NextSibling() {
+		r.SetAttributeString("column-widths", gcl)
 	}
-	w.WriteByte('|')
-	w.WriteByte('\n')
-	for r := header.NextSibling(); r != nil; r = r.NextSibling() {
-		writePaddedLine(w, s, r, gcl)
-	}
-	w.WriteByte('\n')
-	return ast.WalkSkipChildren, nil
+	return ast.WalkContinue, nil
 }
 
-func writePaddedLine(w util.BufWriter, s []byte, n ast.Node, gcl []int) error {
-	cx := 0
-	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
-		w.WriteByte('|') //TODO(williambanfield): respect the originally used table column separator.
-		w.WriteByte(' ')
-		pl := gcl[cx] - len(c.Text(s))
-		w.Write(c.Text(s))
-		w.Write(bytes.Repeat([]byte{' '}, pl))
-		w.WriteByte(' ')
-		cx++
-	}
-	w.WriteByte('|')
-	w.WriteByte('\n')
-	return nil
-}
 func (r *Renderer) renderTableHeader(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	a, ok := n.AttributeString("column-widths")
+	if !ok {
+		panic("missing attribute for column width")
+	}
+	gcl := a.([]int)
+	if entering {
+		cx := 0
+		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+			c.SetAttributeString("column-width", gcl[cx])
+			cx++
+		}
+	} else {
+		w.WriteByte('|')
+		w.WriteByte('\n')
+		cx := 0
+		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+			w.WriteByte('|')
+			w.Write(bytes.Repeat([]byte{'-'}, gcl[cx]+2))
+			cx++
+		}
+		w.WriteByte('|')
+		w.WriteByte('\n')
+	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderTableRow(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	a, ok := n.AttributeString("column-widths")
+	if !ok {
+		panic("missing attribute for column width")
+	}
+	gcl := a.([]int)
+	if entering {
+		cx := 0
+		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+			c.SetAttributeString("column-width", gcl[cx])
+			cx++
+		}
+	} else {
+		w.WriteByte('|')
+		w.WriteByte('\n')
+	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderTableCell(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		w.WriteByte('|') //TODO(williambanfield): respect the originally used table column separator.
+		w.WriteByte(' ')
+	} else {
+		a, ok := n.AttributeString("column-width")
+		if !ok {
+			panic("missing attribute for column width")
+		}
+		wd := a.(int)
+		var tl int
+		lines := n.Lines()
+		for i := 0; i < lines.Len(); i++ {
+			li := lines.At(i)
+			tl += li.Len()
+		}
+		pl := wd - tl
+		w.Write(bytes.Repeat([]byte{' '}, pl+1))
+	}
 	return ast.WalkContinue, nil
 }
