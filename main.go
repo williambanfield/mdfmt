@@ -8,6 +8,7 @@ import (
 
 	"github.com/williambanfield/marker/mdfmt"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
@@ -38,7 +39,7 @@ func main() {
 
 func newParser() parser.Parser {
 	p := goldmark.DefaultParser()
-	//	p.AddOptions(parser.WithParagraphTransformers(util.Prioritized(extension.NewTableParagraphTransformer(), 200)))
+	p.AddOptions(parser.WithParagraphTransformers(util.Prioritized(extension.NewTableParagraphTransformer(), 200)))
 	return p
 }
 
