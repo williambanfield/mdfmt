@@ -93,11 +93,16 @@ func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, enter
 func maxWidth(s []byte, w int) [][]byte {
 	inds := spaceRegexp.FindAllIndex(s, -1)
 
+	// Append an additional position at the end of the list so that the last word
+	// in the text will be included. There is not necessarily a space at the end of
+	// the text, so the regular expression we used may only find the space before the last word.
+	inds = append([][]int{{0}}, inds...)
+
 	// Prepend the first position in the list so that that the first word can be selected.
 	// This is necessary because the first space character occurs after the first 'word'.
 	// The loop below starts at the first position in the list of indices so without prepending
 	// the list []int{{0}}, the first word will be omitted.
-	inds = append([][]int{{0}}, inds...)
+	inds = append(inds, []int{len(s)})
 
 	var res [][]byte
 	lineStart := 0
