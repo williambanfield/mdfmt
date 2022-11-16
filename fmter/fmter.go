@@ -1,4 +1,4 @@
-package mdfmt
+package fmter
 
 import (
 	"bytes"

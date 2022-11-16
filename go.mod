@@ -1,4 +1,4 @@
-module github.com/williambanfield/marker
+module github.com/williambanfield/mdfmt
 
 go 1.19
 

@@ -1,10 +1,10 @@
-package mdfmt_test
+package fmter_test
 
 import (
 	"bytes"
 	"testing"
 
-	"github.com/williambanfield/marker/mdfmt"
+	"github.com/williambanfield/mdfmt/fmter"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -45,8 +45,8 @@ func TestParagraphMaxWidth(t *testing.T) {
 			p.AddOptions(parser.WithParagraphTransformers(util.Prioritized(extension.NewTableParagraphTransformer(), 200)))
 
 			pb := p.Parse(text.NewReader(c.input))
-			mr := mdfmt.NewRenderer(
-				mdfmt.WithMaxCharacterWidth(c.maxWidth),
+			mr := fmter.NewRenderer(
+				fmter.WithMaxCharacterWidth(c.maxWidth),
 			)
 			re := renderer.NewRenderer(
 				renderer.WithNodeRenderers(

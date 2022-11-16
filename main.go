@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/williambanfield/marker/mdfmt"
+	"github.com/williambanfield/mdfmt/fmter"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -44,15 +44,15 @@ func newParser() parser.Parser {
 }
 
 func newRenderer() renderer.Renderer {
-	var opts []mdfmt.Option
+	var opts []fmter.Option
 	gp, err := exec.LookPath("gofmt")
 	if err == nil {
 		gofmt := gofmter{
 			path: gp,
 		}
-		opts = append(opts, mdfmt.WithCodeFenceFormatter("go", gofmt))
+		opts = append(opts, fmter.WithCodeFenceFormatter("go", gofmt))
 	}
-	mdf := mdfmt.NewRenderer(opts...)
+	mdf := fmter.NewRenderer(opts...)
 
 	return renderer.NewRenderer(
 		renderer.WithNodeRenderers(
