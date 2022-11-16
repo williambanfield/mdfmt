@@ -2,6 +2,7 @@ package mdfmt
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 
 	"github.com/yuin/goldmark/ast"
@@ -180,9 +181,24 @@ func (r *Renderer) renderHTMLBlock(w util.BufWriter, s []byte, n ast.Node, enter
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderList(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if !entering {
+		w.WriteByte('\n')
+	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderListItem(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	li := n.(*ast.ListItem)
+	l := li.Parent().(*ast.List)
+	if entering {
+		if l.IsOrdered() {
+			// TODO(williambanfield): Preserve list numbering.
+			fmt.Fprintf(w, "%d%s ", l.Start, string(l.Marker))
+		} else {
+			w.WriteByte(l.Marker)
+		}
+	} else {
+		w.WriteByte('\n')
+	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderThematicBreak(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -207,8 +223,13 @@ func (r *Renderer) renderRawHTML(w util.BufWriter, s []byte, n ast.Node, enterin
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderText(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
-	if entering {
-		w.Write(n.Text(s))
+	if !entering {
+		return ast.WalkContinue, nil
+	}
+	t := n.(*ast.Text)
+	w.Write(n.Text(s))
+	if t.HardLineBreak() || t.SoftLineBreak() {
+		_ = w.WriteByte('\n')
 	}
 	return ast.WalkContinue, nil
 }
