@@ -66,12 +66,19 @@ func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, enter
 
 // TODO: Write a test
 // TODO: change from byte length to character length! https://pkg.go.dev/unicode/utf8#RuneCount
+
 // maxWidth takes in a paragraph of text with line breaks and converts it to a
 // paragraph where every line contains at least one word and is at most w characters wide,
 // granted the first word is not greater than w characters.
 func maxWidth(s []byte, w int) [][]byte {
-	sr := bytes.ReplaceAll(s, []byte("\n"), []byte(" "))
-	inds := wordBoundaryRegexp.FindAllIndex(sr, -1)
+	inds := spaceRegexp.FindAllIndex(s, -1)
+
+	// Prepend the first position in the list so that that the first word can be selected.
+	// This is necessary because the first space character occurs after the first 'word'.
+	// The loop below starts at the first position in the list of indices so without prepending
+	// the list []int{{0}}, the first word will be omitted.
+	inds = append([][]int{{0}}, inds...)
+
 	var res [][]byte
 	lineStart := 0
 	for lineStart < len(inds)-1 { // loop over lines
@@ -80,7 +87,9 @@ func maxWidth(s []byte, w int) [][]byte {
 			inds[lineEnd+1][0]-inds[lineStart][0] < w { // loop over words, continually trying to add the next one!
 			lineEnd++
 		}
-		line := bytes.Trim(sr[inds[lineStart][0]:inds[lineEnd][0]], " ")
+
+		//TODO(williambanfield): preserve hard line breaks.
+		line := bytes.Trim(s[inds[lineStart][0]:inds[lineEnd][0]], " ")
 		res = append(res, line)
 		lineStart = lineEnd
 	}
