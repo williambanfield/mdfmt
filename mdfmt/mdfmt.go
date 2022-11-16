@@ -315,7 +315,7 @@ func (r *Renderer) renderTable(w util.BufWriter, s []byte, n ast.Node, entering 
 func writePaddedLine(w util.BufWriter, s []byte, n ast.Node, gcl []int) error {
 	cx := 0
 	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
-		w.WriteByte('|')
+		w.WriteByte('|') //TODO(williambanfield): respect the originally used table column separator.
 		w.WriteByte(' ')
 		pl := gcl[cx] - len(c.Text(s))
 		w.Write(c.Text(s))
