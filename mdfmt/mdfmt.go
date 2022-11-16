@@ -235,6 +235,11 @@ func (r *Renderer) renderListItem(w util.BufWriter, s []byte, n ast.Node, enteri
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderThematicBreak(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		w.WriteString("---") //TODO(williambanfield): preserve original thematic break characters used.
+	} else {
+		w.WriteByte('\n')
+	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderAutoLink(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
