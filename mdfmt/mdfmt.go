@@ -119,6 +119,7 @@ func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, enter
 // granted the first word is not greater than w characters.
 func maxWidth(s []byte, w int) [][]byte {
 	inds := spaceRegexp.FindAllIndex(s, -1)
+	sr := bytes.ReplaceAll(s, []byte{'\n'}, []byte{' '})
 
 	// Append an additional position at the end of the list so that the last word
 	// in the text will be included. There is not necessarily a space at the end of
@@ -129,7 +130,7 @@ func maxWidth(s []byte, w int) [][]byte {
 	// This is necessary because the first space character occurs after the first 'word'.
 	// The loop below starts at the first position in the list of indices so without prepending
 	// the list []int{{0}}, the first word will be omitted.
-	inds = append(inds, []int{len(s)})
+	inds = append(inds, []int{len(sr)})
 
 	var res [][]byte
 	lineStart := 0
@@ -141,7 +142,7 @@ func maxWidth(s []byte, w int) [][]byte {
 		}
 
 		//TODO(williambanfield): preserve hard line breaks.
-		line := bytes.Trim(s[inds[lineStart][0]:inds[lineEnd][0]], " ")
+		line := bytes.Trim(sr[inds[lineStart][0]:inds[lineEnd][0]], " ")
 		res = append(res, line)
 		lineStart = lineEnd
 	}
