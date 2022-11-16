@@ -47,19 +47,18 @@ var wordBoundaryRegexp = regexp.MustCompile(`\b`)
 func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
 		lines := []byte{}
-		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
-			txt, ok := c.(*ast.Text)
-			if !ok {
-				continue
-			}
-			value := txt.Segment.Value(s)
-			lines = append(lines, value...)
+
+		l := n.Lines().Len()
+		for i := 0; i < l; i++ {
+			l := n.Lines().At(i)
+			lines = append(lines, l.Value(s)...)
 		}
 		split := maxWidth(lines, 80)
 		for i := 0; i < len(split); i++ {
 			w.Write(split[i])
 			w.WriteByte('\n')
 		}
+		w.WriteByte('\n')
 	}
 	return ast.WalkSkipChildren, nil
 }
