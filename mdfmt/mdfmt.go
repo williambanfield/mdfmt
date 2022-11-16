@@ -199,6 +199,8 @@ func (r *Renderer) renderFencedCodeBlock(w util.BufWriter, s []byte, n ast.Node,
 				return ast.WalkStop, err
 			}
 			w.Write(res)
+		} else {
+			w.Write(lines)
 		}
 	} else {
 		_, _ = w.WriteString("```\n")
