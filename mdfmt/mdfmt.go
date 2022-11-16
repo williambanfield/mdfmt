@@ -42,7 +42,7 @@ func (r *Renderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(ast.KindString, r.renderString)
 }
 
-var wordBoundaryRegexp = regexp.MustCompile(`\b`)
+var spaceRegexp = regexp.MustCompile(` `)
 
 func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
