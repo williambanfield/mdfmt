@@ -114,6 +114,11 @@ func (r *Renderer) renderHeading(w util.BufWriter, s []byte, n ast.Node, enterin
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderBlockquote(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if entering {
+		w.WriteString("> ")
+	} else {
+		w.WriteByte('\n')
+	}
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderCodeBlock(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
