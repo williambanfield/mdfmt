@@ -47,9 +47,7 @@ func newRenderer() renderer.Renderer {
 	var opts []fmter.Option
 	gp, err := exec.LookPath("gofmt")
 	if err == nil {
-		gofmt := gofmter{
-			path: gp,
-		}
+		gofmt := gofmter(gp)
 		opts = append(opts, fmter.WithCodeFenceFormatter("go", gofmt))
 	}
 	mdf := fmter.NewRenderer(opts...)
@@ -61,18 +59,14 @@ func newRenderer() renderer.Renderer {
 	)
 }
 
-type gofmter struct {
-	path string
-}
+type gofmter string
 
 func (g gofmter) Format(b []byte) ([]byte, error) {
-	c := exec.Command(g.path)
+	c := exec.Command(string(g))
 	c.Stdin = bytes.NewReader(b)
-	buf := &bytes.Buffer{}
-	c.Stdout = buf
 	err := c.Run()
 	if err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return c.Output()
 }
