@@ -136,12 +136,20 @@ func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, enter
 			l := n.Lines().At(i)
 			lines = append(lines, l.Value(s)...)
 		}
+		// TODO(williambanfield): this may not be a top-level paragraph but should
+		// still respect the max width of the document. Ensure to encorporate any
+		// offset that is already present in the line(s) in the maxWidth calculation.
 		split := maxWidth(lines, r.maxWidth)
 		for i := 0; i < len(split); i++ {
 			w.Write(split[i])
 			w.WriteByte('\n')
 		}
-		//TODO(williambanfield): consider adding extra newline back to end of paragraph.
+	} else {
+		// if this is a top-level paragraph, let handle the newline here, otherwise
+		// let the parent node insert the newlines.
+		if n.Parent().Kind() == ast.KindDocument {
+			w.WriteByte('\n')
+		}
 	}
 	return ast.WalkSkipChildren, nil
 }
@@ -153,6 +161,10 @@ func (r *Renderer) renderParagraph(w util.BufWriter, s []byte, n ast.Node, enter
 // paragraph where every line contains at least one word and is at most w characters wide,
 // granted the first word is not greater than w characters.
 func maxWidth(s []byte, w int) [][]byte {
+	var res [][]byte
+	if len(s) == 0 {
+		return res
+	}
 	sr := bytes.ReplaceAll(s, []byte{'\n'}, []byte{' '})
 	inds := spaceRegexp.FindAllIndex(sr, -1)
 
@@ -167,7 +179,6 @@ func maxWidth(s []byte, w int) [][]byte {
 	// the list []int{{0}}, the first word will be omitted.
 	inds = append(inds, []int{len(sr)})
 
-	var res [][]byte
 	lineStart := 0
 	for lineStart < len(inds)-1 { // loop over lines
 		lineEnd := lineStart + 1
@@ -201,7 +212,29 @@ func (r *Renderer) renderDocument(w util.BufWriter, s []byte, n ast.Node, enteri
 }
 
 func (r *Renderer) renderTextBlock(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
-	return ast.WalkContinue, nil
+	if entering {
+		lines := []byte{}
+		l := n.Lines().Len()
+		for i := 0; i < l; i++ {
+			l := n.Lines().At(i)
+			lines = append(lines, l.Value(s)...)
+		}
+		// TODO(williambanfield): this may not be a top-level textblock but should
+		// still respect the max width of the document. Ensure to encorporate any
+		// offset that is already present in the line(s) in the maxWidth calculation.
+		split := maxWidth(lines, r.maxWidth)
+		for i := 0; i < len(split); i++ {
+			w.Write(split[i])
+			w.WriteByte('\n')
+		}
+	} else {
+		// if this is a top-level paragraph, let handle the newline here, otherwise
+		// let the parent node insert the newlines.
+		if n.Parent().Kind() == ast.KindDocument {
+			w.WriteByte('\n')
+		}
+	}
+	return ast.WalkSkipChildren, nil
 }
 func (r *Renderer) renderHeading(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
@@ -261,7 +294,23 @@ func (r *Renderer) renderHTMLBlock(w util.BufWriter, s []byte, n ast.Node, enter
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderList(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
-	if !entering {
+	if entering {
+		return ast.WalkContinue, nil
+	}
+
+	// If a list follows this node and there was no extra newline in the original document,
+	// do not add a newline. goldmark considers lists of different indentation
+	// level to be separate lists. For example:
+	//
+	// * Item 1
+	//   * Item 2
+	// * Item 3
+	// * Item 4
+	//
+	// Is 3 different lists from goldmark's perspective, with the list containing Item 2 being a child list of the list containing Item 1.
+	//
+	// TODO(williambanfield): Determine if a newline followed the node in the original text.
+	if n.NextSibling() != nil && n.NextSibling().Kind() != ast.KindList {
 		w.WriteByte('\n')
 	}
 	return ast.WalkContinue, nil
@@ -270,6 +319,7 @@ func (r *Renderer) renderListItem(w util.BufWriter, s []byte, n ast.Node, enteri
 	li := n.(*ast.ListItem)
 	l := li.Parent().(*ast.List)
 	if entering {
+		w.Write(bytes.Repeat([]byte{' '}, li.Offset-2))
 		if l.IsOrdered() {
 			// TODO(williambanfield): Preserve list numbering.
 			fmt.Fprintf(w, "%d%s ", l.Start, string(l.Marker))
@@ -277,9 +327,9 @@ func (r *Renderer) renderListItem(w util.BufWriter, s []byte, n ast.Node, enteri
 			w.WriteByte(l.Marker)
 			w.WriteByte(' ')
 		}
-	} else {
-		w.WriteByte('\n')
 	}
+	// Currently, list items receive a newline by way of containing a 'textblock' so a newline is not needed here
+	// to handle the !entering case.
 	return ast.WalkContinue, nil
 }
 func (r *Renderer) renderThematicBreak(w util.BufWriter, s []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
